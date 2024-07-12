@@ -21,10 +21,11 @@ import torch.nn.functional as F
 import transformers
 from datasets.arrow_dataset import Dataset
 from datasets.load import load_dataset
+from datasets.formatting.formatting import LazyBatch
 from huggingface_hub import hf_hub_download
 from jaxtyping import Float, Int
 from rich import print as rprint
-from transformers import AutoTokenizer
+from transformers import PreTrainedTokenizerBase
 
 from transformer_lens.FactoredMatrix import FactoredMatrix
 
@@ -266,7 +267,7 @@ def keep_single_column(dataset: Dataset, col_name: str):
 
 def tokenize_and_concatenate(
     dataset: Dataset,
-    tokenizer: AutoTokenizer,
+    tokenizer: PreTrainedTokenizerBase,
     streaming: bool = False,
     max_length: int = 1024,
     column_name: str = "text",
@@ -300,7 +301,7 @@ def tokenize_and_concatenate(
     else:
         seq_len = max_length
 
-    def tokenize_function(examples: Dict[str, List[str]]) -> Dict[str, np.ndarray]:
+    def tokenize_function(examples: LazyBatch) -> Dict[str, np.ndarray]:
         text = examples[column_name]
         # Concatenate it all into an enormous string, separated by eos_tokens
         full_text = tokenizer.eos_token.join(text)

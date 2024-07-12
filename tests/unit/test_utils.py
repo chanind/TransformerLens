@@ -2,6 +2,8 @@ import numpy as np
 import pytest
 import torch
 from torch import nn
+from datasets import Dataset
+from transformers import AutoTokenizer
 
 import transformer_lens.utils as utils
 from transformer_lens import HookedTransformer
@@ -421,3 +423,33 @@ class TestInitXavier:
         x_new = nn.Parameter(torch.empty(2, d_model, 137))
         utils.init_xavier_normal_(x_new)
         assert torch.allclose(x_new, x, rtol=1e-2)
+
+
+class TestTokenizeAndConcatenate:
+    @pytest.fixture(scope="class")
+    def tokenizer(self):
+        return AutoTokenizer.from_pretrained("gpt2")
+
+    def test_separates_sequences_with_eos(self, tokenizer):
+        sequences = [
+            {"text": "hello world?"},
+            {"text": "hello world!"},
+            {"text": "hello world1."},
+            {"text": "hello world1\n"},
+            {"text": "hello world1 \\\\"},
+            {"text": "< hello world2 >"},
+            {"text": "> hello world3 <"},
+        ] * 20
+        dataset = Dataset.from_list(sequences)
+
+        # Tokenize and concatenate the sequences
+        tokens = utils.tokenize_and_concatenate(
+            dataset, tokenizer, num_proc=1, max_length=50, add_bos_token=True
+        )["tokens"]
+        assert tokenizer.eos_token_id in tokens[0]
+        tokenized_seqs = [tokenizer.encode(seq["text"]) for seq in sequences]
+        expected_toks = [tokenizer.bos_token_id]
+        for seq in tokenized_seqs:
+            expected_toks.extend(seq + [tokenizer.eos_token_id])
+        assert tokens[0].tolist() == expected_toks[:50]
+        print(tokenizer.decode(tokens[0]))
