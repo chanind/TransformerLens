@@ -2,6 +2,7 @@
 
 This module contains all the component :class:`RMSNorm`.
 """
+
 from typing import Dict, Optional, Union
 
 import torch
@@ -41,9 +42,9 @@ class RMSNorm(nn.Module):
         scale: Float[torch.Tensor, "batch pos 1"] = self.hook_scale(
             (x.pow(2).mean(-1, keepdim=True) + self.eps).sqrt()
         )
-        x = self.hook_normalized(x / scale).to(self.cfg.dtype)  # [batch, pos, length]
+        x = x / scale  # [batch, pos, length]
 
         if x.device != self.w.device:
             self.to(x.device)
 
-        return x * self.w
+        return self.hook_normalized(x * self.w).to(self.cfg.dtype)
